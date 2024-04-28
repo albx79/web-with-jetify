@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", api_router)
         .route("/", get(hello))
         .route("/another-page", get(another_page));
-    let port = 8000_u16;
+    let port = 8080_u16;
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
 
     info!("router initialized, now listening on port {}", port);

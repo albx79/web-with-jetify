@@ -2,11 +2,13 @@
   "packages": ["cargo@latest"],
   "shell": {
     "init_hook": [
-      "echo 'Welcome to devbox!' > /dev/null"
     ],
     "scripts": {
-      "test": [
-        "echo \"Error: no test specified\" && exit 1"
+      "run_test": [
+        "cargo test"
+      ],
+      "start_server": [
+        "cargo run --release"
       ]
     }
   }
