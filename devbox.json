@@ -7,6 +7,9 @@
       "run_test": [
         "cargo test"
       ],
+      "prepare": [
+        "cargo build --release"
+      ],
       "start_server": [
         "cargo run --release"
       ]
