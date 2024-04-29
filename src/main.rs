@@ -1,15 +1,19 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use anyhow::Context;
 use askama::Template;
 use axum::{http::StatusCode, response::{Html, IntoResponse, Response}, routing::get, Router, Form};
 use axum::extract::State;
 use axum::routing::post;
+use edgedb_protocol::model::Uuid;
+use edgedb_tokio::Client as EdgeClient;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let client: EdgeClient = edgedb_tokio::create_client().await?;
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -21,13 +25,14 @@ async fn main() -> anyhow::Result<()> {
     info!("initializing router...");
 
     let api_router = Router::new()
-        .route("/todos", post(add_todo))
+        .route("/todos", post(add_todo::<EdgeClient>))
         .route("/hello", get(hello_from_the_server))
-        .with_state(Arc::new(AppState { todos: Mutex::new(Vec::new())}));
+        .with_state(client.clone()); //Arc::new(AppState { todos: Mutex::new(Vec::new())}));
     let router = Router::new()
         .nest("/api", api_router)
-        .route("/", get(hello))
-        .route("/another-page", get(another_page));
+        .route("/", get(hello::<EdgeClient>))
+        .route("/another-page", get(another_page))
+        .with_state(client);
     let port = 8080_u16;
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
 
@@ -40,13 +45,16 @@ async fn main() -> anyhow::Result<()> {
 struct AppState {
     todos: Mutex<Vec<String>>,
 }
-async fn hello() -> impl IntoResponse {
-    let template = HelloTemplate {};
+
+async fn hello<T: TodoStore>(State(todos): State<T>) -> impl IntoResponse {
+    let template = HelloTemplate {
+        todos: todos.all_todos().await.expect("Cannot get todos")//.into_iter().map(|(s)| s).collect()
+    };
     HtmlTemplate(template)
 }
 
 async fn another_page() -> impl IntoResponse {
-    HtmlTemplate(AnotherPageTemplate{})
+    HtmlTemplate(AnotherPageTemplate {})
 }
 
 async fn hello_from_the_server() -> &'static str {
@@ -59,15 +67,49 @@ struct TodoList {
     todos: Vec<String>,
 }
 
-async fn add_todo(
-    State(state): State<Arc<AppState>>,
+trait TodoStore: Send {
+    async fn add_todo(&self, todo: String) -> anyhow::Result<Uuid>;
+    async fn all_todos(&self) -> anyhow::Result<Vec<String>>;
+}
+
+impl TodoStore for Arc<AppState> {
+    async fn add_todo(&self, todo: String) -> anyhow::Result<Uuid> {
+        let res = Uuid::new_v4();
+        let mut lock = self.todos.lock().await;
+        lock.push(todo);
+        Ok(res)
+    }
+
+    async fn all_todos(&self) -> anyhow::Result<Vec<String>> {
+        Ok(self.todos.lock().await.clone())
+    }
+}
+
+impl TodoStore for EdgeClient {
+    async fn add_todo(&self, todo: String) -> anyhow::Result<Uuid> {
+        let id: Uuid = self.query_required_single(r##"
+            with
+                msg := <str>$0,
+                new := (insert Todos { todo := msg })
+            select new.id
+        "##, &(todo, )).await?;
+        Ok(id)
+    }
+
+    async fn all_todos(&self) -> anyhow::Result<Vec<String>> {
+        let todos: Vec<String> = self.query("select Todos.todo", &()).await?;
+        Ok(todos)
+    }
+}
+
+async fn add_todo<T: TodoStore>(
+    State(state): State<T>,
     Form(todo): Form<TodoRequest>,
 ) -> impl IntoResponse {
-    let mut lock = state.todos.lock().unwrap();
-    lock.push(todo.todo);
+    state.add_todo(todo.todo).await.expect("Could not save TODO");
 
     let template = TodoList {
-        todos: lock.clone(),
+        todos: state.all_todos().await.expect("Cannot get todos")//.into_iter().map(|(_, s)| s).collect(),
     };
 
     HtmlTemplate(template)
@@ -75,12 +117,14 @@ async fn add_todo(
 
 #[derive(Serialize, Deserialize)]
 struct TodoRequest {
-    todo: String
+    todo: String,
 }
 
 #[derive(Template)]
 #[template(path = "hello.html")]
-struct HelloTemplate;
+struct HelloTemplate {
+    todos: Vec<String>,
+}
 
 #[derive(Template)]
 #[template(path = "another-page.html")]

@@ -15,3 +15,7 @@ tower-http = { version = "0.5.2", features = ["fs"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 serde = { version = "1.0.198", features = ["derive"] }
+edgedb-tokio = "0.5.0"
+edgedb-protocol = "0.6.0"
+edgedb-derive = "0.5.1"
+uuid = { version = "1.8.0", features = ["v4"] }
