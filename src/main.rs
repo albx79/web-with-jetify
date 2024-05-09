@@ -1,8 +1,9 @@
+use std::collections::BTreeMap;
 use std::sync::{Arc};
 use anyhow::Context;
 use askama::Template;
 use axum::{http::StatusCode, response::{Html, IntoResponse, Response}, routing::get, Router, Form};
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::routing::post;
 use edgedb_protocol::model::Uuid;
 use edgedb_tokio::Client as EdgeClient;
@@ -28,8 +29,14 @@ async fn main() -> anyhow::Result<()> {
         .route("/todos", post(add_todo::<EdgeClient>))
         .route("/hello", get(hello_from_the_server))
         .with_state(client.clone()); //Arc::new(AppState { todos: Mutex::new(Vec::new())}));
+
+    let fate_router = Router::new()
+        .route("/characters/:id", get(render_character))
+        .with_state(client.clone());
+
     let router = Router::new()
         .nest("/api", api_router)
+        .nest("/fate", fate_router)
         .route("/", get(hello::<EdgeClient>))
         .route("/another-page", get(another_page))
         .with_state(client);
@@ -48,7 +55,7 @@ struct AppState {
 
 async fn hello<T: TodoStore>(State(todos): State<T>) -> impl IntoResponse {
     let template = HelloTemplate {
-        todos: todos.all_todos().await.expect("Cannot get todos")//.into_iter().map(|(s)| s).collect()
+        todos: todos.all_todos().await.expect("Cannot get todos")
     };
     HtmlTemplate(template)
 }
@@ -109,7 +116,7 @@ async fn add_todo<T: TodoStore>(
     state.add_todo(todo.todo).await.expect("Could not save TODO");
 
     let template = TodoList {
-        todos: state.all_todos().await.expect("Cannot get todos")//.into_iter().map(|(_, s)| s).collect(),
+        todos: state.all_todos().await.expect("Cannot get todos")
     };
 
     HtmlTemplate(template)
@@ -132,6 +139,32 @@ struct AnotherPageTemplate;
 
 /// A wrapper type that we'll use to encapsulate HTML parsed by askama into valid HTML for axum to serve.
 struct HtmlTemplate<T>(T);
+
+
+#[derive(Template)]
+#[template(path = "character-sheet.html")]
+struct CharacterSheet {
+    name: String,
+    aspects: Vec<String>,
+    skills: Vec<(u8, Vec<String>)>,
+}
+
+async fn render_character(Path(id): Path<String>, State(client): State<EdgeClient>) -> impl IntoResponse {
+    let char = CharacterSheet {
+        name: "John Doe".into(),
+        aspects: [
+            "Brave adventurer",
+            "Afraid of the dark",
+            "Clever",
+            "Resourceful",
+        ].iter().map(|s| s.to_string()).collect(),
+        skills: vec![
+            (4, vec!["Contacts".to_string()]),
+            (3, vec!["Deceive".to_string(), "Provoke".to_string(), "Rapport".to_string()])
+        ]
+    };
+    HtmlTemplate(char)
+}
 
 /// Allows us to convert Askama HTML templates into valid HTML for axum to serve in the response.
 impl<T> IntoResponse for HtmlTemplate<T>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FATE Character Sheet</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .skill {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>FATE Character Sheet</h1>
+    <table>
+        <thead>
+        <tr>
+            <th colspan="2">Character Details</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Name:</td>
+            <td>{{name}}</td>
+        </tr>
+        <tr>
+            <td>High Concept:</td>
+            <td>{{aspects[0]}}</td>
+        </tr>
+        <tr>
+            <td>Trouble:</td>
+            <td>{{aspects[1]}}</td>
+        </tr>
+        <tr>
+            <td>Aspects:</td>
+            <td>
+                <ul>
+                    {% for a in aspects[2..] %}
+                    <li>{{a}}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table>
+        <thead>
+        <tr>
+            <th>Skills</th>
+            <th>Rating</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for rank in skills %}
+        <tr>
+            {% for skill in rank.1 %}
+            <td class="skill">{{skill}}</td>
+            <td>{{rank.0}}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <table>
+        <thead>
+        <tr>
+            <th>Stunts</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Combat Expertise: Gain +2 to attack rolls when using a sword.</td>
+        </tr>
+        <tr>
+            <td>Athletic Sprint: Once per scene, you may move two zones for free instead of one.</td>
+        </tr>
+        <tr>
+            <td>Smooth Talker: Once per session, reroll any failed Deceive or Rapport check.</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>
