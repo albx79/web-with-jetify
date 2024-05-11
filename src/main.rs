@@ -147,6 +147,7 @@ struct CharacterSheet {
     name: String,
     aspects: Vec<String>,
     skills: Vec<(u8, Vec<String>)>,
+    stunts: Vec<String>,
 }
 
 async fn render_character(Path(id): Path<String>, State(client): State<EdgeClient>) -> impl IntoResponse {
@@ -160,8 +161,13 @@ async fn render_character(Path(id): Path<String>, State(client): State<EdgeClien
         ].iter().map(|s| s.to_string()).collect(),
         skills: vec![
             (4, vec!["Contacts".to_string()]),
-            (3, vec!["Deceive".to_string(), "Provoke".to_string(), "Rapport".to_string()])
-        ]
+            (3, vec!["Deceive".to_string(), "Provoke".to_string(), "Rapport".to_string()]),
+        ],
+        stunts: vec![
+            "Acrobatic Maneuver: Once per session, gain +2 to Athletics for a daring physical feat.".to_string(),
+            "Master of Disguise: Gain +2 to Deceive when attempting to disguise yourself.".to_string(),
+            "Keen Observer: Once per scene, reroll any failed Notice check.".to_string(),
+        ],
     };
     HtmlTemplate(char)
 }

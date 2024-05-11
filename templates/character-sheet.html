@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://unpkg.com/htmx.org@latest"></script>
     <title>FATE Character Sheet</title>
     <style>
         body {
@@ -47,22 +48,22 @@
         <tbody>
         <tr>
             <td>Name:</td>
-            <td>{{name}}</td>
+            <td><span id="charName" contenteditable="true">{{name}}</span></td>
         </tr>
         <tr>
             <td>High Concept:</td>
-            <td>{{aspects[0]}}</td>
+            <td><span id="highConcept" contenteditable="true">{{aspects[0]}}</span></td>
         </tr>
         <tr>
             <td>Trouble:</td>
-            <td>{{aspects[1]}}</td>
+            <td><span id="trouble" contenteditable="true">{{aspects[1]}}</span></td>
         </tr>
         <tr>
             <td>Aspects:</td>
             <td>
                 <ul>
-                    {% for a in aspects[2..] %}
-                    <li>{{a}}</li>
+                    {% for aspect in aspects[2..] %}
+                    <li contenteditable="true">{{aspect}}</li>
                     {% endfor %}
                 </ul>
             </td>
@@ -77,11 +78,11 @@
         </tr>
         </thead>
         <tbody>
-        {% for rank in skills %}
+        {% for (rating, skill_names) in skills %}
         <tr>
-            {% for skill in rank.1 %}
-            <td class="skill">{{skill}}</td>
-            <td>{{rank.0}}</td>
+            {% for skill_name in skill_names %}
+            <td class="skill" contenteditable="true">{{skill_name}}</td>
+            <td contenteditable="true">{{rating}}</td>
             {% endfor %}
         </tr>
         {% endfor %}
@@ -94,17 +95,14 @@
         </tr>
         </thead>
         <tbody>
+        {% for stunt in stunts%}
         <tr>
-            <td>Combat Expertise: Gain +2 to attack rolls when using a sword.</td>
+            <td contenteditable="true">{{stunt}}</td>
         </tr>
-        <tr>
-            <td>Athletic Sprint: Once per scene, you may move two zones for free instead of one.</td>
-        </tr>
-        <tr>
-            <td>Smooth Talker: Once per session, reroll any failed Deceive or Rapport check.</td>
-        </tr>
+        {% endfor %}
         </tbody>
     </table>
 </div>
+
 </body>
 </html>
