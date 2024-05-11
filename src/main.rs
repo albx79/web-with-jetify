@@ -3,7 +3,7 @@ use std::sync::{Arc};
 use anyhow::Context;
 use askama::Template;
 use axum::{http::StatusCode, response::{Html, IntoResponse, Response}, routing::get, Router, Form};
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::routing::post;
 use edgedb_protocol::model::Uuid;
 use edgedb_tokio::Client as EdgeClient;
@@ -144,30 +144,53 @@ struct HtmlTemplate<T>(T);
 #[derive(Template)]
 #[template(path = "character-sheet.html")]
 struct CharacterSheet {
+    character: Character,
+    editable: bool,
+}
+
+struct Character {
     name: String,
     aspects: Vec<String>,
-    skills: Vec<(u8, Vec<String>)>,
+    skills: Vec<Skill>,
     stunts: Vec<String>,
 }
 
-async fn render_character(Path(id): Path<String>, State(client): State<EdgeClient>) -> impl IntoResponse {
+struct Skill {
+    name: String,
+    rating: u8,
+}
+
+#[derive(Deserialize, Default)]
+struct RenderCharacter {
+    #[serde(default)]
+    editable: bool,
+}
+
+async fn render_character(Path(id): Path<String>, Query(params): Query<RenderCharacter>, State(_client): State<EdgeClient>) -> impl IntoResponse {
     let char = CharacterSheet {
-        name: "John Doe".into(),
-        aspects: [
-            "Brave adventurer",
-            "Afraid of the dark",
-            "Clever",
-            "Resourceful",
-        ].iter().map(|s| s.to_string()).collect(),
-        skills: vec![
-            (4, vec!["Contacts".to_string()]),
-            (3, vec!["Deceive".to_string(), "Provoke".to_string(), "Rapport".to_string()]),
-        ],
-        stunts: vec![
-            "Acrobatic Maneuver: Once per session, gain +2 to Athletics for a daring physical feat.".to_string(),
-            "Master of Disguise: Gain +2 to Deceive when attempting to disguise yourself.".to_string(),
-            "Keen Observer: Once per scene, reroll any failed Notice check.".to_string(),
-        ],
+        character: Character {
+            name: "John Doe".into(),
+            aspects: [
+                "Brave adventurer",
+                "Afraid of the dark",
+                "Clever",
+                "Resourceful",
+            ].iter().map(|s| s.to_string()).collect(),
+            skills: vec![
+                Skill{ name: "Contacts".to_string(), rating: 4 },
+                Skill{ name: "Deceive".to_string(), rating: 3 },
+                Skill{ name: "Provoke".to_string(), rating: 3 },
+                Skill{ name: "Rapport".to_string(), rating: 2 },
+                Skill{ name: "Contacts".to_string(), rating: 2 },
+                Skill{ name: "Shoot".to_string(), rating: 2 },
+            ],
+            stunts: vec![
+                "Acrobatic Maneuver: Once per session, gain +2 to Athletics for a daring physical feat.".to_string(),
+                "Master of Disguise: Gain +2 to Deceive when attempting to disguise yourself.".to_string(),
+                "Keen Observer: Once per scene, reroll any failed Notice check.".to_string(),
+            ],
+        },
+        editable: params.editable,
     };
     HtmlTemplate(char)
 }

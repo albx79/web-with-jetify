@@ -1,5 +1,6 @@
+<!-- character_sheet.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="the-whole-page">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -39,6 +40,7 @@
 <body>
 <div class="container">
     <h1>FATE Character Sheet</h1>
+    <a href="?editable={{!editable}}">Toggle Edit</a>
     <table>
         <thead>
         <tr>
@@ -48,22 +50,22 @@
         <tbody>
         <tr>
             <td>Name:</td>
-            <td><span id="charName" contenteditable="true">{{name}}</span></td>
+            <td contenteditable="{{ editable }}" hx-boost="true">{{ character.name }}</td>
         </tr>
         <tr>
             <td>High Concept:</td>
-            <td><span id="highConcept" contenteditable="true">{{aspects[0]}}</span></td>
+            <td contenteditable="{{ editable }}" hx-boost="true">{{ character.aspects[0] }}</td>
         </tr>
         <tr>
             <td>Trouble:</td>
-            <td><span id="trouble" contenteditable="true">{{aspects[1]}}</span></td>
+            <td contenteditable="{{ editable }}" hx-boost="true">{{ character.aspects[1] }}</td>
         </tr>
         <tr>
             <td>Aspects:</td>
             <td>
                 <ul>
-                    {% for aspect in aspects[2..] %}
-                    <li contenteditable="true">{{aspect}}</li>
+                    {% for aspect in character.aspects[2..] %}
+                    <li contenteditable="{{ editable }}" hx-boost="true">{{ aspect }}</li>
                     {% endfor %}
                 </ul>
             </td>
@@ -78,12 +80,10 @@
         </tr>
         </thead>
         <tbody>
-        {% for (rating, skill_names) in skills %}
+        {% for skill in character.skills %}
         <tr>
-            {% for skill_name in skill_names %}
-            <td class="skill" contenteditable="true">{{skill_name}}</td>
-            <td contenteditable="true">{{rating}}</td>
-            {% endfor %}
+            <td class="skill" contenteditable="{{ editable }}" hx-boost="true">{{ skill.name }}</td>
+            <td contenteditable="{{ editable }}" hx-boost="true">{{ skill.rating }}</td>
         </tr>
         {% endfor %}
         </tbody>
@@ -95,9 +95,9 @@
         </tr>
         </thead>
         <tbody>
-        {% for stunt in stunts%}
+        {% for stunt in character.stunts %}
         <tr>
-            <td contenteditable="true">{{stunt}}</td>
+            <td contenteditable="{{ editable }}" hx-boost="true">{{ stunt }}</td>
         </tr>
         {% endfor %}
         </tbody>
