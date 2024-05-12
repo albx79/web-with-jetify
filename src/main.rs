@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    println!("EDGEDB {:?};", std::env::var("EDGEDB_SECRET_KEY"));
     let client: EdgeClient = edgedb_tokio::create_client().await?;
     tracing_subscriber::registry()
         .with(
