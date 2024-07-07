@@ -1,4 +1,6 @@
-use std::collections::BTreeMap;
+mod utils;
+
+use std::fmt::Debug;
 use std::sync::{Arc};
 use anyhow::Context;
 use askama::Template;
@@ -11,10 +13,10 @@ use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use crate::utils::print_edgedb_err;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("EDGEDB {:?};", std::env::var("EDGEDB_SECRET_KEY"));
     let client: EdgeClient = edgedb_tokio::create_client().await?;
     tracing_subscriber::registry()
         .with(
@@ -29,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     let api_router = Router::new()
         .route("/todos", post(add_todo::<EdgeClient>))
         .route("/hello", get(hello_from_the_server))
-        .with_state(client.clone()); //Arc::new(AppState { todos: Mutex::new(Vec::new())}));
+        .with_state(client.clone());
 
     let fate_router = Router::new()
         .route("/characters/:id", get(render_character))
@@ -69,7 +71,7 @@ async fn hello_from_the_server() -> &'static str {
     "Hello!"
 }
 
-#[derive(Template)]
+#[derive(Template, Debug)]
 #[template(path = "todo-list.html")]
 struct TodoList {
     todos: Vec<String>,
@@ -128,13 +130,13 @@ struct TodoRequest {
     todo: String,
 }
 
-#[derive(Template)]
+#[derive(Template, Debug)]
 #[template(path = "hello.html")]
 struct HelloTemplate {
     todos: Vec<String>,
 }
 
-#[derive(Template)]
+#[derive(Template, Debug)]
 #[template(path = "another-page.html")]
 struct AnotherPageTemplate;
 
@@ -142,13 +144,15 @@ struct AnotherPageTemplate;
 struct HtmlTemplate<T>(T);
 
 
-#[derive(Template)]
+#[derive(Template, Debug)]
 #[template(path = "character-sheet.html")]
 struct CharacterSheet {
     character: Character,
+    all_skills: Vec<String>,
     editable: bool,
 }
 
+#[derive(Deserialize, Debug)]
 struct Character {
     name: String,
     aspects: Vec<String>,
@@ -156,6 +160,7 @@ struct Character {
     stunts: Vec<String>,
 }
 
+#[derive(Deserialize, Debug)]
 struct Skill {
     name: String,
     rating: u8,
@@ -167,39 +172,95 @@ struct RenderCharacter {
     editable: bool,
 }
 
-async fn render_character(Path(id): Path<String>, Query(params): Query<RenderCharacter>, State(_client): State<EdgeClient>) -> impl IntoResponse {
+
+mod dto {
+    use edgedb_derive::Queryable;
+    use serde::Deserialize;
+
+    #[derive(Deserialize, Queryable)]
+    pub struct Character {
+        pub name: String,
+        pub stunts: Vec<String>,
+        pub skills: Vec<SkillOuter>,
+        pub aspects: Vec<Aspect>,
+    }
+
+    #[derive(Deserialize, Queryable)]
+    pub struct SkillOuter {
+        pub name: SkillInner,
+        pub level: i32,
+    }
+
+    #[derive(Deserialize, Queryable)]
+    pub struct SkillInner {
+        pub name: String,
+    }
+
+    #[derive(Deserialize, Queryable)]
+    pub struct Aspect {
+        pub description: String,
+        pub aspect_type: AspectType,
+    }
+
+    #[derive(Deserialize, Ord, PartialOrd, Eq, PartialEq, Copy, Clone, Queryable)]
+    pub enum AspectType {
+        High,
+        Trouble,
+        Other
+    }
+}
+
+async fn render_character(Path(id): Path<String>, Query(params): Query<RenderCharacter>, State(client): State<EdgeClient>) -> impl IntoResponse {
+    // let mut c: dto::Character =
+    let c = client.query_required_single_json(r##"
+        select fate::PC {
+            name,
+            stunts,
+            skills: { name: { name }, level },
+            aspects: { description, aspect_type },
+        }
+        filter .id = <uuid><str>$0
+    "##, &(id,)).await
+        .map_err(print_edgedb_err)
+        .unwrap();
+    let mut c: dto::Character = serde_json::from_str(&c).with_context(|| c.to_string()).unwrap();
+    c.aspects.sort_by_key(|a| a.aspect_type);
+    let skills = client.query_json("select fate::AllowedSkill { name } order by.name", &())
+        .await
+        .map_err(print_edgedb_err)
+        .unwrap();
+    let all_skills: Vec<dto::SkillInner> = serde_json::from_str(&skills).with_context(|| skills.to_string()).unwrap();
     let char = CharacterSheet {
         character: Character {
-            name: "John Doe".into(),
-            aspects: [
-                "Brave adventurer",
-                "Afraid of the dark",
-                "Clever",
-                "Resourceful",
-            ].iter().map(|s| s.to_string()).collect(),
-            skills: vec![
-                Skill{ name: "Contacts".to_string(), rating: 4 },
-                Skill{ name: "Deceive".to_string(), rating: 3 },
-                Skill{ name: "Provoke".to_string(), rating: 3 },
-                Skill{ name: "Rapport".to_string(), rating: 2 },
-                Skill{ name: "Contacts".to_string(), rating: 2 },
-                Skill{ name: "Shoot".to_string(), rating: 2 },
-            ],
-            stunts: vec![
-                "Acrobatic Maneuver: Once per session, gain +2 to Athletics for a daring physical feat.".to_string(),
-                "Master of Disguise: Gain +2 to Deceive when attempting to disguise yourself.".to_string(),
-                "Keen Observer: Once per scene, reroll any failed Notice check.".to_string(),
-            ],
+            name: c.name,
+            aspects: c.aspects.into_iter().map(|a| a.description).collect(),
+            skills: c.skills.into_iter().map(|s| Skill {
+                name: s.name.name,
+                rating: s.level as u8
+            }).collect(),
+            stunts: c.stunts,
         },
+        all_skills: all_skills.into_iter().map(|s| s.name).collect(),
         editable: params.editable,
     };
     HtmlTemplate(char)
 }
 
+#[derive(Debug, Deserialize)]
+struct StuntReq {
+    stunts: Vec<String>
+}
+
+pub fn save(Path(char_id): Path<String>, Form(changed): Form<Character> ) -> impl IntoResponse {
+    let query = ();
+    unimplemented!()
+
+}
+
 /// Allows us to convert Askama HTML templates into valid HTML for axum to serve in the response.
 impl<T> IntoResponse for HtmlTemplate<T>
     where
-        T: Template,
+        T: Template + Debug,
 {
     fn into_response(self) -> Response {
         // Attempt to render the template with askama
@@ -209,7 +270,7 @@ impl<T> IntoResponse for HtmlTemplate<T>
             // If we're not, return an error or some bit of fallback HTML
             Err(err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to render template. Error: {}", err),
+                format!("Failed to render template. Error: {}; data {:?}", err, &self.0),
             )
                 .into_response(),
         }

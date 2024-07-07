@@ -12,26 +12,32 @@
             margin: 0;
             padding: 20px;
         }
+
         h1 {
             text-align: center;
         }
+
         .container {
             max-width: 600px;
             margin: auto;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
+
         th, td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
+
         th {
             background-color: #f2f2f2;
         }
+
         .skill {
             text-align: center;
         }
@@ -41,67 +47,78 @@
 <div class="container">
     <h1>FATE Character Sheet</h1>
     <a href="?editable={{!editable}}">Toggle Edit</a>
-    <table>
-        <thead>
-        <tr>
-            <th colspan="2">Character Details</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr>
-            <td>Name:</td>
-            <td contenteditable="{{ editable }}" hx-boost="true">{{ character.name }}</td>
-        </tr>
-        <tr>
-            <td>High Concept:</td>
-            <td contenteditable="{{ editable }}" hx-boost="true">{{ character.aspects[0] }}</td>
-        </tr>
-        <tr>
-            <td>Trouble:</td>
-            <td contenteditable="{{ editable }}" hx-boost="true">{{ character.aspects[1] }}</td>
-        </tr>
-        <tr>
-            <td>Aspects:</td>
-            <td>
-                <ul>
-                    {% for aspect in character.aspects[2..] %}
-                    <li contenteditable="{{ editable }}" hx-boost="true">{{ aspect }}</li>
-                    {% endfor %}
-                </ul>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-    <table>
-        <thead>
-        <tr>
-            <th>Skills</th>
-            <th>Rating</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for skill in character.skills %}
-        <tr>
-            <td class="skill" contenteditable="{{ editable }}" hx-boost="true">{{ skill.name }}</td>
-            <td contenteditable="{{ editable }}" hx-boost="true">{{ skill.rating }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    <table>
-        <thead>
-        <tr>
-            <th>Stunts</th>
-        </tr>
-        </thead>
-        <tbody>
-        {% for stunt in character.stunts %}
-        <tr>
-            <td contenteditable="{{ editable }}" hx-boost="true">{{ stunt }}</td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <form>
+        <table>
+            <thead>
+            <tr>
+                <th colspan="2">Character Details</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>Name:</td>
+                <td><input type="text" value="{{ character.name }}"/></td>
+            </tr>
+            <tr>
+                <td>High Concept:</td>
+                <td><input type="text" value="{{ character.aspects[0] }}"/></td>
+            </tr>
+            <tr>
+                <td>Trouble:</td>
+                <td><input type="text" value="{{ character.aspects[1] }}"/></td>
+            </tr>
+            <tr>
+                <td>Aspects:</td>
+                <td>
+                    <ul>
+                        {% for aspect in character.aspects[2..] %}
+                        <li><input type="text" value="{{ aspect }}"></li>
+                        {% endfor %}
+                    </ul>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <table>
+            <thead>
+            <tr>
+                <th>Skills</th>
+                <th>Rating</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for skill in character.skills %}
+            <tr>
+                <td class="skill">
+                    <select name="skill_rating_{{skill.rating}}">
+                        {% for available_skill in all_skills %}
+                        <option value="{{available_skill}}">{{available_skill}}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="text" value="{{ skill.rating }}"/></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <table>
+            <thead>
+            <tr>
+                <th>Stunts</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for stunt in character.stunts %}
+            <tr>
+                <td><input type="text" value="{{ stunt }}"/></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% if editable %}
+        <button>Save</button>
+        {% endif %}
+    </form>
 </div>
 
 </body>

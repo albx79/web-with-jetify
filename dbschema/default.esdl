@@ -5,20 +5,9 @@ module default {
 }
 
 module fate {
-    type AllowedSkill {
-        required name: str {
-            constraint exclusive;
-            constraint regexp(r"^[A-Z0-9 ']+");
-        }
-    }
 
-    type Skill {
-        required name: AllowedSkill {
-            readonly := true;
-        };
-        required level: int16 {
-            default := -1;
-        };
+    scalar type Skill extending str {
+        constraint regexp(r"^[A-Z0-9 ']+");
     }
 
     scalar type AspectType extending enum<High, Trouble, Other>;
@@ -30,8 +19,14 @@ module fate {
 
     type PC {
         required name: str;
-        multi skills: Skill;
-        multi aspects: Aspect;
-        multi stunts: str;
+        required skills: array<tuple<Skill, int16>>;
+        required aspects: array<tuple<AspectType, str>>;
+        required stunts: array<str>;
+    }
+
+    type Game {
+        required title: str;
+        required allowed_skills: array<str>;
+        multi link pcs: PC;
     }
 }
